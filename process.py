@@ -11,16 +11,18 @@ from typing import Dict
 import json
 from skimage.measure import regionprops
 import imageio
+import torch
 from pathlib import Path
 import time
 import pandas as pd
 import random
 from random import randrange
 import os
+from ganslate.engines.utils import init_engine
 
 # This parameter adapts the paths between local execution and execution in docker. You can use this flag to switch between these two modes.
 # For building your docker, set this parameter to True. If False, it will run process.py locally for test purposes.
-execute_in_docker = True
+execute_in_docker = False
 class Nodulegeneration(SegmentationAlgorithm):
     def __init__(self):
         super().__init__(
@@ -39,7 +41,11 @@ class Nodulegeneration(SegmentationAlgorithm):
         # load nodules.json for location
         with open("/input/nodules.json" if execute_in_docker else "test/nodules.json") as f:
             self.data = json.load(f)
-    
+
+        # Download models and load ganslate API
+        download_models()
+        self.api = init_engine('infer', ["config=./model/infer_config.yaml"])
+ 
 
     def predict(self, *, input_image: SimpleITK.Image) -> SimpleITK.Image:
         input_image = SimpleITK.GetArrayFromImage(input_image)
@@ -84,7 +90,16 @@ class Nodulegeneration(SegmentationAlgorithm):
 
                 indexes = nodule_contrasted!=np.min(nodule_contrasted)
                 result = poisson_blend(nodule_contrasted, cxr_img_scaled, y_min, y_max, x_min, x_max)
-                result[x_min:x_max, y_min:y_max] = np.mean(np.array([crop*255, result[x_min:x_max, y_min:y_max]]), axis=0)
+                
+                input = np.mean(np.array([crop*255, result[x_min:x_max, y_min:y_max]]), axis=0)
+                original_shape = input.shape
+                rounded_shape = original_shape[0] - original_shape[0] % 8
+                input.resize((rounded_shape, rounded_shape))
+                input = torch.tensor(input)
+                input = input.view(1, 1, rounded_shape, rounded_shape).float()
+                out = self.api.infer(input).squeeze().detach().cpu().numpy().copy()
+                out.resize(original_shape)
+                result[x_min:x_max, y_min:y_max] = out
                 cxr_img_scaled = result.copy()
 
             nodule_images[j,:,:] = result 
