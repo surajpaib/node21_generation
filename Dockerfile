@@ -26,6 +26,9 @@ RUN python -m pip install --user -rrequirements.txt
 
 COPY --chown=algorithm:algorithm process.py /opt/algorithm/
 
+# Copy model files to the docker
+COPY --chown=algorithm:algorithm model /opt/algorithm/model
+
 ENTRYPOINT python -m process $0 $@
 
 ## ALGORITHM LABELS ##

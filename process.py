@@ -22,7 +22,7 @@ from ganslate.engines.utils import init_engine
 
 # This parameter adapts the paths between local execution and execution in docker. You can use this flag to switch between these two modes.
 # For building your docker, set this parameter to True. If False, it will run process.py locally for test purposes.
-execute_in_docker = False
+execute_in_docker = True
 class Nodulegeneration(SegmentationAlgorithm):
     def __init__(self):
         super().__init__(
@@ -42,9 +42,9 @@ class Nodulegeneration(SegmentationAlgorithm):
         with open("/input/nodules.json" if execute_in_docker else "test/nodules.json") as f:
             self.data = json.load(f)
 
-        # Download models and load ganslate API
-        download_models()
-        self.api = init_engine('infer', ["config=./model/infer_config.yaml"])
+        # Load ganslate API
+        self.api = init_engine('infer', ["config=/opt/algorithm/model/infer_config.yaml" \
+                                            if execute_in_docker else "config=./model/infer_config.yaml"])
  
 
     def predict(self, *, input_image: SimpleITK.Image) -> SimpleITK.Image:

@@ -5,17 +5,8 @@ import SimpleITK
 import warnings
 from skimage.measure import regionprops
 import cv2
-import wget
-import zipfile
 
 CORRECTION = 255
-
-
-def download_models():
-    print("Downloading ganslate model ...")
-    wget.download(url="https://transfer.sh/FjmFiF/ganslate_nodule.zip")
-    with zipfile.ZipFile("./ganslate_nodule.zip", 'r') as zip_ref:
-        zip_ref.extractall(".")
 
 def get_nodule_diameter(seg_image):
         
