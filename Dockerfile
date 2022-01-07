@@ -1,4 +1,4 @@
-FROM python:3.7-slim
+FROM pytorch/pytorch:1.9.0-cuda10.2-cudnn7-devel
 
 RUN groupadd -r algorithm && useradd -m --no-log-init -r -g algorithm algorithm
 
@@ -7,6 +7,11 @@ RUN mkdir -p /opt/algorithm /input /output \
 
 RUN apt-get update 
 RUN apt-get install ffmpeg libsm6 libxext6  -y
+
+# libsm6 and libxext6 are needed for cv2
+RUN apt-get update && apt-get install -y libxext6 libglib2.0-0 libsm6 build-essential sudo \
+    libgl1-mesa-glx git wget rsync tmux nano dcmtk fftw3-dev liblapacke-dev libpng-dev libopenblas-dev jq && \
+  rm -rf /var/lib/apt/lists/*
 
 USER algorithm
 
