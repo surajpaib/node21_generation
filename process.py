@@ -10,15 +10,17 @@ from utils import *
 from typing import Dict
 import json
 from skimage.measure import regionprops
-import imageio
 import torch
 from pathlib import Path
 import time
 import pandas as pd
 import random
 from random import randrange
+import cv2
+from PIL import Image
 import os
 from ganslate.engines.utils import init_engine
+from ganslate.data.utils.normalization import min_max_normalize, min_max_denormalize
 
 # This parameter adapts the paths between local execution and execution in docker. You can use this flag to switch between these two modes.
 # For building your docker, set this parameter to True. If False, it will run process.py locally for test purposes.
@@ -89,16 +91,23 @@ class Nodulegeneration(SegmentationAlgorithm):
                 nodule_contrasted = new_arr * c
 
                 indexes = nodule_contrasted!=np.min(nodule_contrasted)
+                
                 result = poisson_blend(nodule_contrasted, cxr_img_scaled, y_min, y_max, x_min, x_max)
                 
                 input = np.mean(np.array([crop*255, result[x_min:x_max, y_min:y_max]]), axis=0)
+
                 original_shape = input.shape
-                rounded_shape = original_shape[0] - original_shape[0] % 8
-                input.resize((rounded_shape, rounded_shape))
+                target_shape = 128
+
+                input = cv2.resize(input, (target_shape, target_shape))
                 input = torch.tensor(input)
-                input = input.view(1, 1, rounded_shape, rounded_shape).float()
+                input = input.view(1, 1, target_shape, target_shape)
+                input = min_max_normalize(input, 0, 255)
+
                 out = self.api.infer(input).squeeze().detach().cpu().numpy().copy()
-                out.resize(original_shape)
+                out = min_max_denormalize(out, 0, 255)
+                out = cv2.resize(out, original_shape)
+
                 result[x_min:x_max, y_min:y_max] = out
                 cxr_img_scaled = result.copy()
 
